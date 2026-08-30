@@ -6,253 +6,155 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URL
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.*
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import java.util.Locale
-import kotlin.concurrent.thread
 
 class MainActivity : Activity() {
 
     private lateinit var speech: TextToSpeech
+    private lateinit var speechRecognizer: SpeechRecognizer
     private lateinit var statusText: TextView
-
-    // سنضع رابط الخادم هنا بعد إنشائه
-    private val API_URL = "ضع_رابط_الخادم_هنا"
+    private lateinit var button: Button
 
     private val requestCode = 100
+    private val API_URL = "https://example.com/api/chat" // ضع رابط API هنا
+
+    private val client = OkHttpClient()
+    private val scope = CoroutineScope(Dispatchers.Main)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        speech = TextToSpeech(this) {
-            speech.language = Locale("ar")
+        // تحويل النص إلى كلام
+        speech = TextToSpeech(this) { result ->
+            if (result == TextToSpeech.SUCCESS) {
+                speech.language = Locale("ar", "SA")
+                speech.setSpeechRate(1.0f)
+            }
         }
 
-        if (android.os.Build.VERSION.SDK_INT >= 23) {
-            requestPermissions(
-                arrayOf(
-                    Manifest.permission.RECORD_AUDIO
-                ),
-                requestCode
-            )
+        // التعرف على الكلام
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        speechRecognizer.setRecognitionListener(object : android.speech.RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                statusText.text = "🎤 استمع إليك الآن..."
+            }
+            override fun onBeginningOfSpeech() {
+                statusText.text = "🎤 تحدث الآن..."
+            }
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {
+                statusText.text = "⏳ جارٍ معالجة كلامك..."
+            }
+            override fun onError(error: Int) {
+                statusText.text = "❌ خطأ: $error"
+            }
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val userText = matches[0]
+                    statusText.text = "أنت قلت:\n$userText\n\n⏳ أفكر في الإجابة..."
+                    sendToAI(userText)
+                }
+            }
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+
+        // طلب إذن الميكروفون
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), requestCode)
         }
 
-        val button = Button(this)
-        button.text = "🎙️ تحدث مع الوكيل"
-
-        statusText = TextView(this)
-        statusText.text = "اضغط الزر وتحدث"
-        statusText.textSize = 18f
-        statusText.setPadding(20, 30, 20, 30)
-
-        button.setOnClickListener {
-            startVoiceInput()
+        // واجهة التطبيق
+        val layout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(50, 50, 50, 50)
         }
 
-        val layout = LinearLayout(this)
-        layout.orientation = LinearLayout.VERTICAL
-        layout.setPadding(40, 80, 40, 40)
+        statusText = TextView(this).apply {
+            text = "مرحباً 👋\nاضغط الزر وتحدث معي"
+            textSize = 20f
+            gravity = Gravity.CENTER
+            setPadding(20, 20, 20, 40)
+        }
 
-        layout.addView(button)
+        button = Button(this).apply {
+            text = "🎤 تحدث مع وكيل صوتي"
+            textSize = 18f
+            setOnClickListener { startVoiceInput() }
+        }
+
         layout.addView(statusText)
-
+        layout.addView(button)
         setContentView(layout)
     }
 
     private fun startVoiceInput() {
-
-        val intent = Intent(
-            RecognizerIntent.ACTION_RECOGNIZE_SPEECH
-        )
-
-        intent.putExtra(
-            RecognizerIntent.EXTRA_LANGUAGE,
-            "ar-SA"
-        )
-
-        intent.putExtra(
-            RecognizerIntent.EXTRA_LANGUAGE_MODEL,
-            RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
-        )
-
-        intent.putExtra(
-            RecognizerIntent.EXTRA_PROMPT,
-            "تحدث الآن..."
-        )
-
-        startActivityForResult(intent, 200)
-    }
-
-    override fun onActivityResult(
-        requestCode: Int,
-        resultCode: Int,
-        data: Intent?
-    ) {
-        super.onActivityResult(
-            requestCode,
-            resultCode,
-            data
-        )
-
-        if (
-            requestCode == 200 &&
-            resultCode == RESULT_OK &&
-            data != null
-        ) {
-
-            val results =
-                data.getStringArrayListExtra(
-                    RecognizerIntent.EXTRA_RESULTS
-                )
-
-            val text = results?.firstOrNull()
-
-            if (!text.isNullOrEmpty()) {
-
-                statusText.text =
-                    "أنت: $text\n\nجاري التفكير..."
-
-                askAI(text)
-            }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            statusText.text = "التعرف على الكلام غير متوفر على هذا الجهاز."
+            return
         }
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ar-SA")
+            putExtra(RecognizerIntent.EXTRA_PROMPT, "تحدث الآن...")
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+        }
+        speechRecognizer.startListening(intent)
     }
 
-    private fun askAI(message: String) {
-
-        thread {
-
+    private fun sendToAI(userText: String) {
+        scope.launch(Dispatchers.IO) {
             try {
+                val request = Request.Builder()
+                    .url("$API_URL?message=${userText}")
+                    .get()
+                    .build()
 
-                val url = URL(API_URL)
+                val response = client.newCall(request).execute()
+                val aiResponse = response.body?.string() ?: "لا توجد إجابة من الخادم"
 
-                val connection =
-                    url.openConnection() as HttpURLConnection
-
-                connection.requestMethod = "POST"
-                connection.setRequestProperty(
-                    "Content-Type",
-                    "application/json"
-                )
-
-                connection.doOutput = true
-
-                val json =
-                    """
-                    {
-                      "message": ${jsonEscape(message)}
-                    }
-                    """.trimIndent()
-
-                OutputStreamWriter(
-                    connection.outputStream
-                ).use { writer ->
-                    writer.write(json)
-                    writer.flush()
+                withContext(Dispatchers.Main) {
+                    showAIResponse(aiResponse)
                 }
-
-                val reader =
-                    BufferedReader(
-                        InputStreamReader(
-                            connection.inputStream
-                        )
-                    )
-
-                val response =
-                    reader.readText()
-
-                reader.close()
-
-                connection.disconnect()
-
-                val answer =
-                    extractAnswer(response)
-
-                runOnUiThread {
-
-                    statusText.text =
-                        "الوكيل:\n$answer"
-
-                    speak(answer)
-                }
-
             } catch (e: Exception) {
-
-                runOnUiThread {
-
-                    statusText.text =
-                        "حدث خطأ في الاتصال:\n${e.message}"
-
-                    speak(
-                        "حدث خطأ أثناء الاتصال بالخادم"
-                    )
+                withContext(Dispatchers.Main) {
+                    statusText.text = "تعذر الاتصال بالذكاء الاصطناعي.\n${e.message}"
                 }
             }
         }
     }
 
-    private fun extractAnswer(json: String): String {
-
-        val marker = "\"reply\":\""
-
-        val start = json.indexOf(marker)
-
-        if (start == -1) {
-            return "لم أفهم رد الخادم"
-        }
-
-        val beginning =
-            start + marker.length
-
-        val end =
-            json.indexOf(
-                "\"",
-                beginning
-            )
-
-        if (end == -1) {
-            return "تعذر قراءة الرد"
-        }
-
-        return json
-            .substring(beginning, end)
-            .replace("\\n", "\n")
-            .replace("\\\"", "\"")
-            .replace("\\\\", "\\")
-    }
-
-    private fun jsonEscape(text: String): String {
-
-        return "\"" +
-                text
-                    .replace("\\", "\\\\")
-                    .replace("\"", "\\\"")
-                    .replace("\n", "\\n")
-                    .replace("\r", "\\r") +
-                "\""
+    private fun showAIResponse(response: String) {
+        statusText.text = "🤖 وكيلك الصوتي:\n\n$response"
+        speak(response)
     }
 
     private fun speak(text: String) {
-
-        speech.speak(
-            text,
-            TextToSpeech.QUEUE_FLUSH,
-            null,
-            "voice_agent"
-        )
+        if (text.isNotBlank()) {
+            speech.language = Locale("ar", "SA")
+            speech.speak(text, TextToSpeech.QUEUE_FLUSH, null, "AI_RESPONSE")
+        }
     }
 
     override fun onDestroy() {
-
+        speechRecognizer.destroy()
         speech.stop()
         speech.shutdown()
-
         super.onDestroy()
     }
 }
