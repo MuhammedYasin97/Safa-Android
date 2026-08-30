@@ -1,0 +1,9 @@
+{
+  "name": "my-ai-agent",
+  "version": "1.0.0",
+  "private": true,
+  "description": "وكيل ذكاء اصطناعي بسيط بملفات في مجلد واحد",
+  "scripts": {
+    "start": "npx serve ."
+  }
+}

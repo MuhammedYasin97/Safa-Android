@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>وكيل الذكاء الاصطناعي</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <header>
+      <h1>🤖 وكيل الذكاء الاصطناعي</h1>
+      <p>مساعدك الذكي للمحادثة وتنفيذ المهام.</p>
+    </header>
+
+    <section id="chat" class="chat">
+      <div class="message assistant">مرحبًا! أنا وكيلك الذكي. اكتب رسالتك للبدء.</div>
+    </section>
+
+    <form id="chatForm" class="composer">
+      <input id="messageInput" type="text" placeholder="اكتب رسالتك هنا..." autocomplete="off" required>
+      <button type="submit">إرسال</button>
+    </form>
+
+    <p class="note">ملاحظة: هذه النسخة واجهة جاهزة. لربطها بنموذج ذكاء اصطناعي حقيقي نضيف مفتاح API بطريقة آمنة عبر خادم.</p>
+  </main>
+  <script src="config.js"></script>
+  <script src="agent.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
