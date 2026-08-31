@@ -4,15 +4,24 @@ plugins {
 }
 
 android {
-    namespace 'com.example.voiceagent'
-    compileSdk 35
+    namespace "com.example.voiceagent"
+    compileSdk 34
 
     defaultConfig {
-        applicationId 'com.example.voiceagent'
-        minSdk 26
-        targetSdk 35
+        applicationId "com.example.voiceagent"
+        minSdk 24
+        targetSdk 34
         versionCode 1
-        versionName '1.0'
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
     }
 
     compileOptions {
@@ -24,3 +33,19 @@ android {
         jvmTarget = '17'
     }
 }
+
+dependencies {
+    // مكتبات أساسية
+    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.0"
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.9.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
+    // مكتبة النطق (TextToSpeech) مدمجة في النظام، لا تحتاج إضافة خارجية
+    // مكتبة التعرف على الكلام (SpeechRecognizer) أيضاً مدمجة في النظام
+
+    // اختبارات
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso
