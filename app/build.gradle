@@ -1,4 +1,4 @@
-هplugins {
+plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
 }
@@ -35,17 +35,13 @@ android {
 }
 
 dependencies {
-    // مكتبات أساسية
     implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.0"
     implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.9.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
-    // مكتبة النطق (TextToSpeech) مدمجة في النظام، لا تحتاج إضافة خارجية
-    // مكتبة التعرف على الكلام (SpeechRecognizer) أيضاً مدمجة في النظام
-
-    // اختبارات
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
+}
